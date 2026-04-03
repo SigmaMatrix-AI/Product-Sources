@@ -30,7 +30,12 @@ body {
     #000;
   isolation: isolate;
   user-select: none;
-  cursor: ew-resize;
+  cursor: grab;
+  touch-action: none;
+}
+
+.app.is-dragging {
+  cursor: grabbing;
 }
 
 .scene-layer,
@@ -47,6 +52,59 @@ body {
 
 .copy-layer {
   pointer-events: none;
+}
+
+.empty-state {
+  position: absolute;
+  left: 32px;
+  bottom: 86px;
+  max-width: min(520px, calc(100vw - 64px));
+  padding: 20px 22px;
+  color: var(--paper);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: linear-gradient(180deg, rgba(18, 15, 11, 0.9), rgba(0, 0, 0, 0.78));
+  backdrop-filter: blur(10px);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.24);
+  pointer-events: none;
+  z-index: 5;
+}
+
+.empty-state-eyebrow,
+.empty-state-title,
+.empty-state-body,
+.empty-state-detail {
+  margin: 0;
+}
+
+.empty-state-eyebrow {
+  margin-bottom: 10px;
+  color: var(--muted);
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.empty-state-title {
+  margin-bottom: 10px;
+  font-size: clamp(24px, 3vw, 36px);
+  line-height: 0.95;
+  letter-spacing: 0.02em;
+  text-wrap: balance;
+}
+
+.empty-state-body {
+  max-width: 48ch;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.empty-state-detail {
+  margin-top: 12px;
+  color: var(--muted);
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .copy-line {
@@ -138,18 +196,28 @@ body {
 .scrub-track {
   position: absolute;
   left: 28px;
-  right: 28px;
   bottom: 34px;
-  height: 3px;
-  background: rgba(255, 255, 255, 0.22);
+  width: 74px;
+  height: 74px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.1)) center / 1px 100% no-repeat,
+    linear-gradient(90deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.1)) center / 100% 1px no-repeat,
+    rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(8px);
   z-index: 3;
 }
 
 .scrub-fill {
-  width: 50%;
-  height: 100%;
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  margin-top: -6px;
   background: rgba(255, 255, 255, 0.84);
-  transform-origin: left center;
+  border-radius: 999px;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.08);
+  transition: opacity 160ms ease;
 }
 
 .status-chip {
@@ -199,5 +267,20 @@ body {
 
   .copy-title {
     font-size: 24px;
+  }
+
+  .empty-state {
+    left: 22px;
+    right: 22px;
+    bottom: 86px;
+    max-width: none;
+    padding: 18px;
+  }
+
+  .scrub-track {
+    left: 22px;
+    bottom: 22px;
+    width: 64px;
+    height: 64px;
   }
 }

@@ -31,12 +31,18 @@ const SCRUB_RANGES = {
   panRange: [-0.6, 0.6],
 }
 const MASK_SIZE = { width: 1024, height: 576 }
-const IDLE_SWAY = 0.032
-const IDLE_SPEED = 0.00014
-const POINTER_EASE = 5.2
+const IDLE_SWAY = 0.022
+const IDLE_SPEED = 0.0001
+const DRAG_SENSITIVITY_X = 0.82
+const DRAG_SENSITIVITY_Y = 0.68
+const ACTIVE_FOLLOW = 12
+const IDLE_FOLLOW = 4.4
+const IDLE_RETURN = 0.02
 const MASK_PADDING = 20
 const MIN_JUSTIFY_WIDTH = 180
 const FRAME_Y_OFFSET = -0.32
+const MODEL_ASSET_PATH = './assets/model.glb'
+const app = requireElement('app')
 const copyLayer = requireElement('copy-layer')
 const sceneLayer = requireElement('scene-layer')
 const scrubFill = requireElement('scrub-fill')
@@ -56,7 +62,7 @@ This template turns a single 3D model into an editorial layout that stays readab
 
 Instead of dropping copy on top of a fixed image, the page measures the visible occupied shape and recalculates legal line slots from that shape. The result feels closer to typesetting around a physical object than around a rectangle.
 
-The default motion stays narrow on purpose. A small horizontal scrub is enough to change the silhouette, expose different negative spaces, and make the copy breathe without turning the page into a scene viewer.
+The default motion stays narrow on purpose. A compact freeform drag is enough to change the silhouette, expose different negative spaces, and make the copy breathe without turning the page into a scene viewer.
 
 What matters most is not subject matter. Any model with a strong outline, readable mass, and limited visual noise can be used here as long as the page still produces stable text corridors.
 
@@ -173,10 +179,15 @@ const maskCamera = camera.clone()
 const clock = new THREE.Clock()
 const pointer = {
   dragging: false,
-  progress: 0.5,
-  target: 0.5,
+  progressX: 0.5,
+  progressY: 0.5,
+  targetX: 0.5,
+  targetY: 0.5,
   startX: 0,
-  startProgress: 0.5,
+  startY: 0,
+  startProgressX: 0.5,
+  startProgressY: 0.5,
+  idleMix: 1,
 }
 
 let modelRoot = null
@@ -233,7 +244,7 @@ async function loadModel() {
     statusChip.textContent = 'Loading model…'
 
     const loader = new GLTFLoader()
-    const gltf = await loader.loadAsync('./assets/model.glb')
+    const gltf = await loader.loadAsync(MODEL_ASSET_PATH)
     modelRoot = gltf.scene
     normalizeModel(modelRoot)
     scene.add(modelRoot)
@@ -242,12 +253,39 @@ async function loadModel() {
     maskScene.add(maskRoot)
 
     fitState = computeFitState(modelRoot, camera, viewportWidth, viewportHeight)
-    statusChip.textContent = 'Drag horizontally'
+    statusChip.textContent = 'Drag in any direction'
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown model load error.'
     statusChip.textContent = 'Model load failed'
+    renderMissingModelState(message)
     console.error(message)
   }
+}
+
+function renderMissingModelState(message) {
+  copyLayer.replaceChildren()
+  const panel = document.createElement('section')
+  panel.className = 'empty-state'
+
+  const eyebrow = document.createElement('p')
+  eyebrow.className = 'empty-state-eyebrow'
+  eyebrow.textContent = 'Missing asset'
+
+  const title = document.createElement('h1')
+  title.className = 'empty-state-title'
+  title.textContent = 'Add assets/model.glb to see the 3D layout.'
+
+  const body = document.createElement('p')
+  body.className = 'empty-state-body'
+  body.textContent = `This template expects a local GLB file at ${MODEL_ASSET_PATH}. Once the file exists, refresh the page.`
+
+  const detail = document.createElement('p')
+  detail.className = 'empty-state-detail'
+  detail.textContent = `Load error: ${message}`
+
+  panel.append(eyebrow, title, body, detail)
+  copyLayer.appendChild(panel)
+  scrubFill.style.opacity = '0'
 }
 
 function normalizeModel(root) {
@@ -305,18 +343,24 @@ function handleResize() {
 }
 
 function handlePointerDown(event) {
+  app.classList.add('is-dragging')
   pointer.dragging = true
   pointer.startX = event.clientX
-  pointer.startProgress = pointer.target
+  pointer.startY = event.clientY
+  pointer.startProgressX = pointer.targetX
+  pointer.startProgressY = pointer.targetY
 }
 
 function handlePointerMove(event) {
   if (!pointer.dragging) return
   const dx = (event.clientX - pointer.startX) / viewportWidth
-  pointer.target = clamp(pointer.startProgress + dx, 0, 1)
+  const dy = (event.clientY - pointer.startY) / viewportHeight
+  pointer.targetX = clamp(pointer.startProgressX + dx * DRAG_SENSITIVITY_X, 0, 1)
+  pointer.targetY = clamp(pointer.startProgressY + dy * DRAG_SENSITIVITY_Y, 0, 1)
 }
 
 function handlePointerUp() {
+  app.classList.remove('is-dragging')
   pointer.dragging = false
 }
 
@@ -325,15 +369,37 @@ function tick() {
   if (modelRoot === null || maskRoot === null || fitState === null) return
 
   const dt = clock.getDelta()
-  const idleTarget = 0.5 + Math.sin(performance.now() * 0.0002) * 0.05
-  pointer.target = pointer.dragging ? pointer.target : idleTarget
-  pointer.progress += (pointer.target - pointer.progress) * clamp(dt * 5.0, 0.02, 0.1)
-  scrubFill.style.width = '100%'
-  scrubFill.style.transform = `scaleX(${clamp(pointer.progress, 0, 1)})`
+  const now = performance.now()
+  const idleX = 0.5 + Math.sin(now * IDLE_SPEED) * IDLE_SWAY
+  const idleY = 0.5 + Math.cos(now * IDLE_SPEED * 0.82) * IDLE_SWAY * 0.72
 
-  updatePose(pointer.progress)
+  if (pointer.dragging) {
+    pointer.idleMix = 0
+  } else {
+    pointer.idleMix = Math.min(1, pointer.idleMix + dt * 60 * IDLE_RETURN)
+    pointer.targetX += (idleX - pointer.targetX) * pointer.idleMix
+    pointer.targetY += (idleY - pointer.targetY) * pointer.idleMix
+  }
+
+  const follow = pointer.dragging ? ACTIVE_FOLLOW : IDLE_FOLLOW
+  const easing = 1 - Math.exp(-follow * dt)
+  pointer.progressX += (pointer.targetX - pointer.progressX) * easing
+  pointer.progressY += (pointer.targetY - pointer.progressY) * easing
+  scrubFill.style.opacity = '1'
+  scrubFill.style.left = `${clamp(pointer.progressX, 0, 1) * 100}%`
+  scrubFill.style.top = `${clamp(pointer.progressY, 0, 1) * 100}%`
+
+  updatePose({
+    x: shapeProgress(pointer.progressX),
+    y: shapeProgress(pointer.progressY),
+  })
   renderScene()
   layoutCopy(renderMask())
+}
+
+function shapeProgress(value) {
+  const t = clamp(value, 0, 1)
+  return t * t * (3 - 2 * t)
 }
 
 function updatePose(progress) {
@@ -370,7 +436,11 @@ function renderMask() {
 
 function layoutCopy(mask) {
   const regions = getRegions(viewportWidth, viewportHeight)
-  const layoutKey = getLayoutCacheKey(viewportWidth, viewportHeight, pointer.progress)
+  const layoutKey = getLayoutCacheKey(
+    viewportWidth,
+    viewportHeight,
+    { x: pointer.progressX, y: pointer.progressY },
+  )
   if (layoutKey === lastLayoutKey) return
   lastLayoutKey = layoutKey
 

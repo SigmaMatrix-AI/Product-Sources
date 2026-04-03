@@ -7,17 +7,26 @@ export function lerp(a, b, t) {
 }
 
 export function getScrubPose(progress, ranges) {
-  const t = clamp(progress, 0, 1)
+  const input = typeof progress === 'number'
+    ? { x: progress, y: progress }
+    : progress
+
+  const tx = clamp(input.x, 0, 1)
+  const ty = clamp(input.y, 0, 1)
   return {
-    yaw: lerp(ranges.yawRange[0], ranges.yawRange[1], t),
-    pitch: lerp(ranges.pitchRange[0], ranges.pitchRange[1], t),
-    distance: lerp(ranges.distanceRange[0], ranges.distanceRange[1], t),
-    panX: lerp(ranges.panRange[0], ranges.panRange[1], t),
+    yaw: lerp(ranges.yawRange[0], ranges.yawRange[1], tx),
+    pitch: lerp(ranges.pitchRange[0], ranges.pitchRange[1], ty),
+    distance: lerp(ranges.distanceRange[0], ranges.distanceRange[1], ty),
+    panX: lerp(ranges.panRange[0], ranges.panRange[1], tx),
   }
 }
 
 export function getLayoutCacheKey(viewportWidth, viewportHeight, progress) {
-  return `${viewportWidth}:${viewportHeight}:${progress}`
+  const input = typeof progress === 'number'
+    ? { x: progress, y: progress }
+    : progress
+
+  return `${viewportWidth}:${viewportHeight}:${input.x}:${input.y}`
 }
 
 export function getMaskIntervalForBand(mask, bandTop, bandBottom, viewportWidth, viewportHeight, options = {}) {

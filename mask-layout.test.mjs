@@ -120,7 +120,7 @@ test('chooseSlot honors alignment tie-break when widths match', () => {
 })
 
 test('getScrubPose clamps progress to the configured corridor', () => {
-  const pose = getScrubPose(1.6, {
+  const pose = getScrubPose({ x: 1.6, y: -0.4 }, {
     yawRange: [-0.2, 0.35],
     pitchRange: [0.04, 0.12],
     distanceRange: [11, 8],
@@ -128,13 +128,13 @@ test('getScrubPose clamps progress to the configured corridor', () => {
   })
 
   assert.equal(Number(pose.yaw.toFixed(4)), 0.35)
-  assert.equal(Number(pose.pitch.toFixed(4)), 0.12)
-  assert.equal(Number(pose.distance.toFixed(4)), 8)
+  assert.equal(Number(pose.pitch.toFixed(4)), 0.04)
+  assert.equal(Number(pose.distance.toFixed(4)), 11)
   assert.equal(Number(pose.panX.toFixed(4)), 0.75)
 })
 
-test('getScrubPose maps single progress to yaw pitch distance and pan', () => {
-  const pose = getScrubPose(0.25, {
+test('getScrubPose maps horizontal and vertical progress independently', () => {
+  const pose = getScrubPose({ x: 0.25, y: 0.75 }, {
     yawRange: [-0.6, 0.2],
     pitchRange: [0.02, 0.08],
     distanceRange: [1.1, 0.4],
@@ -142,16 +142,18 @@ test('getScrubPose maps single progress to yaw pitch distance and pan', () => {
   })
 
   assert.equal(Number(pose.yaw.toFixed(4)), -0.4)
-  assert.equal(Number(pose.pitch.toFixed(4)), 0.035)
-  assert.equal(Number(pose.distance.toFixed(4)), 0.925)
+  assert.equal(Number(pose.pitch.toFixed(4)), 0.065)
+  assert.equal(Number(pose.distance.toFixed(4)), 0.575)
   assert.equal(Number(pose.panX.toFixed(4)), -0.3)
 })
 
-test('getLayoutCacheKey preserves small progress changes for live reflow', () => {
-  const a = getLayoutCacheKey(1440, 900, 0.5001)
-  const b = getLayoutCacheKey(1440, 900, 0.5009)
+test('getLayoutCacheKey preserves small 2d progress changes for live reflow', () => {
+  const a = getLayoutCacheKey(1440, 900, { x: 0.5001, y: 0.5 })
+  const b = getLayoutCacheKey(1440, 900, { x: 0.5009, y: 0.5 })
+  const c = getLayoutCacheKey(1440, 900, { x: 0.5009, y: 0.5009 })
 
   assert.notEqual(a, b)
+  assert.notEqual(b, c)
 })
 
 test('shouldJustifyLine disables justification inside narrow slots', () => {
