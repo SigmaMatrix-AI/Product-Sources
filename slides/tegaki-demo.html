@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tegaki Demo</title>
+  <style>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      background: #0f1117;
+    }
+
+    tegaki-renderer {
+      font-size: 48px;
+      color: #e8eaf6;
+    }
+  </style>
+</head>
+<body>
+
+<tegaki-renderer>Hello World</tegaki-renderer>
+
+<script type="module">
+  import { registerTegakiElement } from '../node_modules/tegaki/dist/wc/index.mjs';
+  import caveat from '../node_modules/tegaki/dist/fonts/caveat/bundle.mjs';
+
+  registerTegakiElement();
+
+  const el = document.querySelector('tegaki-renderer');
+  el.font = caveat;
+</script>
+
+</body>
+</html>
